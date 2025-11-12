@@ -22,35 +22,33 @@ const getTimetableController = async (req, res) => {
       "Timetables retrieved successfully"
     ).send(res);
   } catch (error) {
-    console.error("Get Timetable Error: ", error);
+    console.error("Get Timetable Error:", error);
     return ApiResponse.internalServerError().send(res);
   }
 };
 
+// ADD TIMETABLE
 const addTimetableController = async (req, res) => {
   try {
     const { semester, branch } = req.body;
 
     if (!semester || !branch) {
-      return ApiResponse.badRequest("Semester and branch are required").send(
-        res
-      );
+      return ApiResponse.badRequest("Semester and branch are required").send(res);
     }
 
     if (!req.file) {
       return ApiResponse.badRequest("Timetable file is required").send(res);
     }
 
+    // ✅ Multer-storage-cloudinary provides Cloudinary URL directly
+    const fileUrl = req.file.path;
+
     let timetable = await Timetable.findOne({ semester, branch });
 
     if (timetable) {
       timetable = await Timetable.findByIdAndUpdate(
         timetable._id,
-        {
-          semester,
-          branch,
-          link: req.file.filename,
-        },
+        { semester, branch, link: fileUrl },
         { new: true }
       );
       return ApiResponse.success(
@@ -62,18 +60,17 @@ const addTimetableController = async (req, res) => {
     timetable = await Timetable.create({
       semester,
       branch,
-      link: req.file.filename,
+      link: fileUrl,
     });
 
-    return ApiResponse.created(timetable, "Timetable added successfully").send(
-      res
-    );
+    return ApiResponse.created(timetable, "Timetable added successfully").send(res);
   } catch (error) {
-    console.error("Add Timetable Error: ", error);
+    console.error("Add Timetable Error:", error);
     return ApiResponse.internalServerError().send(res);
   }
 };
 
+// UPDATE TIMETABLE
 const updateTimetableController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -83,15 +80,13 @@ const updateTimetableController = async (req, res) => {
       return ApiResponse.badRequest("Timetable ID is required").send(res);
     }
 
-    const timetable = await Timetable.findByIdAndUpdate(
-      id,
-      {
-        semester,
-        branch,
-        link: req.file ? req.file.filename : undefined,
-      },
-      { new: true }
-    );
+    const updateData = { semester, branch };
+
+    if (req.file) {
+      updateData.link = req.file.path; // ✅ Direct Cloudinary URL
+    }
+
+    const timetable = await Timetable.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!timetable) {
       return ApiResponse.notFound("Timetable not found").send(res);
@@ -102,11 +97,12 @@ const updateTimetableController = async (req, res) => {
       "Timetable updated successfully"
     ).send(res);
   } catch (error) {
-    console.error("Update Timetable Error: ", error);
+    console.error("Update Timetable Error:", error);
     return ApiResponse.internalServerError().send(res);
   }
 };
 
+// DELETE TIMETABLE
 const deleteTimetableController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,11 +117,9 @@ const deleteTimetableController = async (req, res) => {
       return ApiResponse.notFound("Timetable not found").send(res);
     }
 
-    return ApiResponse.success(null, "Timetable deleted successfully").send(
-      res
-    );
+    return ApiResponse.success(null, "Timetable deleted successfully").send(res);
   } catch (error) {
-    console.error("Delete Timetable Error: ", error);
+    console.error("Delete Timetable Error:", error);
     return ApiResponse.internalServerError().send(res);
   }
 };

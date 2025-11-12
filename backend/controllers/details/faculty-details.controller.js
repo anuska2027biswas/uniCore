@@ -50,7 +50,7 @@ const generateEmployeeId = () => {
 const registerFacultyController = async (req, res) => {
   try {
     const { email, phone } = req.body;
-    const profile = req.file.filename;
+    const profile = req.file ? req.file.path : null; // ✅ Cloudinary returns full URL here
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return ApiResponse.badRequest("Invalid email format").send(res);
@@ -74,13 +74,14 @@ const registerFacultyController = async (req, res) => {
     const user = await facultyDetails.create({
       ...req.body,
       employeeId,
-      profile,
+      profile, // ✅ This will now be a Cloudinary URL
       password: "faculty123",
     });
 
     const sanitizedUser = await facultyDetails
       .findById(user._id)
       .select("-__v -password");
+
     return ApiResponse.created(
       sanitizedUser,
       "Faculty Registered Successfully!"
@@ -91,8 +92,10 @@ const registerFacultyController = async (req, res) => {
   }
 };
 
+
 const updateFacultyController = async (req, res) => {
   try {
+    // 🔹 Validate presence of Faculty ID
     if (!req.params.id) {
       return ApiResponse.badRequest("Faculty ID is required").send(res);
     }
@@ -100,53 +103,62 @@ const updateFacultyController = async (req, res) => {
     const updateData = { ...req.body };
     const { email, phone, password } = updateData;
 
+    // 🔹 Validate email format
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return ApiResponse.badRequest("Invalid email format").send(res);
     }
 
+    // 🔹 Validate phone format
     if (phone && !/^\d{10}$/.test(phone)) {
       return ApiResponse.badRequest("Phone number must be 10 digits").send(res);
     }
 
+    // 🔹 Validate password length
     if (password && password.length < 8) {
       return ApiResponse.badRequest(
-        "Password must be at least 8 characters"
+        "Password must be at least 8 characters long"
       ).send(res);
     }
 
+    // 🔹 Check if email is already taken by another faculty
     if (email) {
-      const existing = await facultyDetails.findOne({
+      const existingEmail = await facultyDetails.findOne({
         _id: { $ne: req.params.id },
         email,
       });
-      if (existing) {
+      if (existingEmail) {
         return ApiResponse.conflict("Email already in use").send(res);
       }
     }
 
+    // 🔹 Check if phone is already taken by another faculty
     if (phone) {
-      const existing = await facultyDetails.findOne({
+      const existingPhone = await facultyDetails.findOne({
         _id: { $ne: req.params.id },
         phone,
       });
-      if (existing) {
+      if (existingPhone) {
         return ApiResponse.conflict("Phone number already in use").send(res);
       }
     }
 
+    // 🔹 If password is being updated, hash it
     if (password) {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(password, salt);
     }
 
+    // 🔹 If a new file is uploaded, update with Cloudinary URL
     if (req.file) {
-      updateData.profile = req.file.filename;
+      updateData.profile = req.file.path; // ✅ Cloudinary returns secure URL here
     }
 
+    // 🔹 Convert date strings to Date objects if present
     if (updateData.dob) updateData.dob = new Date(updateData.dob);
     if (updateData.joiningDate)
       updateData.joiningDate = new Date(updateData.joiningDate);
 
+    // 🔹 Update faculty details
     const updatedUser = await facultyDetails
       .findByIdAndUpdate(req.params.id, updateData, { new: true })
       .select("-__v -password");
@@ -155,12 +167,13 @@ const updateFacultyController = async (req, res) => {
       return ApiResponse.notFound("Faculty not found").send(res);
     }
 
-    return ApiResponse.success(updatedUser, "Updated Successfully!").send(res);
+    return ApiResponse.success(updatedUser, "Faculty updated successfully!").send(res);
   } catch (error) {
-    console.error("Update Error: ", error);
+    console.error("Update Faculty Error:", error);
     return ApiResponse.internalServerError().send(res);
   }
 };
+
 
 const deleteFacultyController = async (req, res) => {
   try {

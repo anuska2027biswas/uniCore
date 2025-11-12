@@ -34,6 +34,11 @@ const getMaterialsController = async (req, res) => {
 
 const addMaterialController = async (req, res) => {
   try {
+    console.log("➡️ Incoming body:", JSON.stringify(req.body, null, 2));
+console.log("➡️ Uploaded file:", JSON.stringify(req.file, null, 2));
+console.log("➡️ User ID:", req.userId);
+
+
     const { title, subject, semester, branch, type } = req.body;
 
     if (!title || !subject || !semester || !branch || !type) {
@@ -48,14 +53,16 @@ const addMaterialController = async (req, res) => {
       return ApiResponse.badRequest("Invalid material type").send(res);
     }
 
+    const fileUrl = req.file.path;
+
     const material = await Material.create({
       title,
       subject,
-      faculty: req.userId, // From auth middleware
+      faculty: req.userId, // from auth
       semester,
       branch,
       type,
-      file: req.file.filename,
+      file: fileUrl,
     });
 
     const populatedMaterial = await Material.findById(material._id)
@@ -63,13 +70,10 @@ const addMaterialController = async (req, res) => {
       .populate("faculty")
       .populate("branch");
 
-    return ApiResponse.created(
-      populatedMaterial,
-      "Material added successfully"
-    ).send(res);
+    return ApiResponse.created(populatedMaterial, "Material added successfully").send(res);
   } catch (error) {
-    console.error("Add Material Error: ", error);
-    return ApiResponse.internalServerError().send(res);
+    console.error("❌ Add Material Error:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -105,7 +109,10 @@ const updateMaterialController = async (req, res) => {
       }
       updateData.type = type;
     }
-    if (req.file) updateData.file = req.file.filename;
+
+    if (req.file) {
+      updateData.file = req.file.path; // ✅ Cloudinary URL
+    }
 
     const updatedMaterial = await Material.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -119,7 +126,7 @@ const updateMaterialController = async (req, res) => {
       "Material updated successfully"
     ).send(res);
   } catch (error) {
-    console.error("Update Material Error: ", error);
+    console.error("Update Material Error:", error);
     return ApiResponse.internalServerError().send(res);
   }
 };

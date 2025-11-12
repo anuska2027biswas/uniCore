@@ -20,7 +20,7 @@ const Profile = ({ profileData }) => {
       <div className="flex items-center gap-8 mb-12 border-b pb-8 justify-between">
         <div className="flex items-center gap-8">
           <img
-            src={`${process.env.REACT_APP_MEDIA_LINK}/${profileData.profile}`}
+            src={`${profileData.profile}`}
             alt="Profile"
             className="w-40 h-40 rounded-full object-cover ring-2 ring-green-500 ring-offset-4"
           />
